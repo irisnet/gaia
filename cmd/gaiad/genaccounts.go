@@ -4,18 +4,17 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-
-	"github.com/tendermint/tendermint/libs/cli"
-
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	authexported "github.com/cosmos/cosmos-sdk/x/auth/exported"
+	"github.com/cosmos/cosmos-sdk/x/auth/vesting"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/tendermint/tendermint/libs/cli"
 )
 
 const (
@@ -76,16 +75,16 @@ contain valid denominations. Accounts may optionally be supplied with vesting pa
 
 			baseAccount := auth.NewBaseAccount(addr, coins.Sort(), nil, 0, 0)
 			if !vestingAmt.IsZero() {
-				baseVestingAccount := auth.NewBaseVestingAccount(
-					baseAccount, vestingAmt.Sort(), sdk.Coins{}, sdk.Coins{}, vestingEnd,
+				baseVestingAccount, _ := vesting.NewBaseVestingAccount(
+					baseAccount, vestingAmt.Sort(), vestingEnd,
 				)
 
 				switch {
 				case vestingStart != 0 && vestingEnd != 0:
-					genAccount = auth.NewContinuousVestingAccountRaw(baseVestingAccount, vestingStart)
+					genAccount = vesting.NewContinuousVestingAccountRaw(baseVestingAccount, vestingStart)
 
 				case vestingEnd != 0:
-					genAccount = auth.NewDelayedVestingAccountRaw(baseVestingAccount)
+					genAccount = vesting.NewDelayedVestingAccountRaw(baseVestingAccount)
 
 				default:
 					return errors.New("invalid vesting parameters; must supply start and end time or end time")

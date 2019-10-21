@@ -4,11 +4,6 @@ import (
 	"io"
 	"os"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	cmn "github.com/tendermint/tendermint/libs/common"
-	"github.com/tendermint/tendermint/libs/log"
-	dbm "github.com/tendermint/tm-db"
-
 	bam "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/simapp"
@@ -22,14 +17,17 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	"github.com/cosmos/cosmos-sdk/x/ibc"
-	mockrecv "github.com/cosmos/cosmos-sdk/x/ibc/mock/recv"
-	mocksend "github.com/cosmos/cosmos-sdk/x/ibc/mock/send"
+	ibcmockbank "github.com/cosmos/cosmos-sdk/x/ibc/mock/bank"
 	"github.com/cosmos/cosmos-sdk/x/mint"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	"github.com/cosmos/cosmos-sdk/x/slashing"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	"github.com/cosmos/cosmos-sdk/x/supply"
+	abci "github.com/tendermint/tendermint/abci/types"
+	cmn "github.com/tendermint/tendermint/libs/common"
+	"github.com/tendermint/tendermint/libs/log"
+	dbm "github.com/tendermint/tm-db"
 )
 
 const appName = "GaiaApp"
@@ -57,8 +55,7 @@ var (
 		slashing.AppModuleBasic{},
 		supply.AppModuleBasic{},
 		ibc.AppModuleBasic{},
-		mocksend.AppModuleBasic{},
-		mockrecv.AppModuleBasic{},
+		ibcmockbank.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -108,8 +105,7 @@ type GaiaApp struct {
 	crisisKeeper      crisis.Keeper
 	paramsKeeper      params.Keeper
 	ibcKeeper         ibc.Keeper
-	ibcMockSendKeeper mocksend.Keeper
-	ibcMockRecvKeeper mockrecv.Keeper
+	ibcmockbankKeeper ibcmockbank.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -131,7 +127,7 @@ func NewGaiaApp(logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest b
 	keys := sdk.NewKVStoreKeys(
 		bam.MainStoreKey, auth.StoreKey, staking.StoreKey,
 		supply.StoreKey, mint.StoreKey, distr.StoreKey, slashing.StoreKey,
-		gov.StoreKey, params.StoreKey, ibc.StoreKey, mocksend.ModuleName, mockrecv.ModuleName,
+		gov.StoreKey, params.StoreKey, ibc.StoreKey, ibcmockbank.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(staking.TStoreKey, params.TStoreKey)
 
@@ -168,9 +164,8 @@ func NewGaiaApp(logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest b
 		app.cdc, keys[slashing.StoreKey], &stakingKeeper, slashingSubspace, slashing.DefaultCodespace,
 	)
 	app.crisisKeeper = crisis.NewKeeper(crisisSubspace, invCheckPeriod, app.supplyKeeper, auth.FeeCollectorName)
-	app.ibcKeeper = ibc.NewKeeper(app.cdc, keys[ibc.StoreKey])
-	app.ibcMockSendKeeper = mocksend.NewKeeper(app.cdc, keys[mocksend.ModuleName], app.ibcKeeper.Port(mocksend.ModuleName))
-	app.ibcMockRecvKeeper = mockrecv.NewKeeper(app.cdc, keys[mockrecv.ModuleName], app.ibcKeeper.Port(mockrecv.ModuleName))
+	app.ibcKeeper = ibc.NewKeeper(app.cdc, keys[ibc.StoreKey], ibc.ModuleName)
+	app.ibcmockbankKeeper = ibcmockbank.NewKeeper(app.cdc, keys[ibcmockbank.StoreKey], app.ibcKeeper.ChannelKeeper, app.bankKeeper)
 
 	// register the proposal types
 	govRouter := gov.NewRouter()
@@ -202,8 +197,7 @@ func NewGaiaApp(logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest b
 		slashing.NewAppModule(app.slashingKeeper, app.stakingKeeper),
 		staking.NewAppModule(app.stakingKeeper, app.accountKeeper, app.supplyKeeper),
 		ibc.NewAppModule(app.ibcKeeper),
-		mocksend.NewAppModule(app.ibcMockSendKeeper),
-		mockrecv.NewAppModule(app.ibcMockRecvKeeper),
+		ibcmockbank.NewAppModule(app.ibcmockbankKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -248,19 +242,7 @@ func NewGaiaApp(logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest b
 	// initialize BaseApp
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
-
-	authante := auth.NewAnteHandler(app.accountKeeper, app.supplyKeeper, auth.DefaultSigVerificationGasConsumer)
-	ibcante := ibc.NewAnteHandler(app.ibcKeeper.Channel())
-	app.SetAnteHandler(func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, sdk.Result, bool) {
-		// TODO: antedecorator
-		newCtx, res, abort := authante(ctx, tx, simulate)
-		if abort {
-			return newCtx, res, abort
-		}
-
-		newCtx, _, abort = ibcante(newCtx, tx, simulate)
-		return newCtx, res, abort
-	})
+	app.SetAnteHandler(auth.NewAnteHandler(app.accountKeeper, app.supplyKeeper, auth.DefaultSigVerificationGasConsumer))
 	app.SetEndBlocker(app.EndBlocker)
 
 	if loadLatest {
