@@ -1,12 +1,5 @@
 # IBC Test
 
-**Use local `cosmos-sdk` for test**
-
-```bash
-# go.mod
-replace github.com/cosmos/cosmos-sdk => /path-to-your-local/cosmos-sdk
-```
-
 **Environment setup**
 
 ```bash
@@ -268,8 +261,8 @@ gaiacli --home ibc-b/n0/gaiacli q ibc connection client client-to-a | jq
 ```bash
 # open-init
 gaiacli --home ibc-a/n0/gaiacli tx ibc channel open-init \
-  port-to-b chann-to-b \
-  port-to-a chann-to-a \
+  port-to-bank chann-to-b \
+  port-to-bank chann-to-a \
   conn-to-b \
   --from n0 -y -o text \
   --broadcast-mode=block
@@ -281,7 +274,7 @@ gaiacli --home ibc-a/n0/gaiacli tx ibc channel open-init \
 # export header.json from chain-a
 gaiacli --home ibc-a/n0/gaiacli q ibc client header -o json >ibc-b/n0/header.json
 # export proof_init.json from chain-a with hight in header.json
-gaiacli --home ibc-a/n0/gaiacli q ibc channel proof port-to-b chann-to-b \
+gaiacli --home ibc-a/n0/gaiacli q ibc channel proof port-to-bank chann-to-b \
   $(jq -r '.value.SignedHeader.header.height' ibc-b/n0/header.json) \
   -o json >ibc-b/n0/chann_proof_init.json
 # view proof_init.json
@@ -293,8 +286,8 @@ gaiacli --home ibc-b/n0/gaiacli tx ibc client update client-to-a ibc-b/n0/header
 gaiacli --home ibc-b/n0/gaiacli q ibc client consensus-state client-to-a | jq
 # open-try
 gaiacli --home ibc-b/n0/gaiacli tx ibc channel open-try \
-  port-to-a chann-to-a \
-  port-to-b chann-to-b \
+  port-to-bank chann-to-a \
+  port-to-bank chann-to-b \
   conn-to-a \
   ibc-b/n0/chann_proof_init.json \
   $(jq -r '.value.SignedHeader.header.height' ibc-b/n0/header.json) \
@@ -308,7 +301,7 @@ gaiacli --home ibc-b/n0/gaiacli tx ibc channel open-try \
 # export header.json from chain-b
 gaiacli --home ibc-b/n0/gaiacli q ibc client header -o json >ibc-a/n0/header.json
 # export proof_try.json from chain-b with hight in header.json
-gaiacli --home ibc-b/n0/gaiacli q ibc channel proof port-to-a chann-to-a \
+gaiacli --home ibc-b/n0/gaiacli q ibc channel proof port-to-bank chann-to-a \
   $(jq -r '.value.SignedHeader.header.height' ibc-a/n0/header.json) \
   -o json >ibc-a/n0/chann_proof_try.json
 # view proof_try.json
@@ -320,7 +313,7 @@ gaiacli --home ibc-a/n0/gaiacli tx ibc client update client-to-b ibc-a/n0/header
 gaiacli --home ibc-a/n0/gaiacli q ibc client consensus-state client-to-b | jq
 # open-ack
 gaiacli --home ibc-a/n0/gaiacli tx ibc channel open-ack \
-  port-to-b chann-to-b \
+  port-to-bank chann-to-b \
   ibc-a/n0/chann_proof_try.json \
   $(jq -r '.value.SignedHeader.header.height' ibc-a/n0/header.json) \
   --from n0 -y -o text \
@@ -333,7 +326,7 @@ gaiacli --home ibc-a/n0/gaiacli tx ibc channel open-ack \
 # export header.json from chain-a
 gaiacli --home ibc-a/n0/gaiacli q ibc client header -o json >ibc-b/n0/header.json
 # export proof_ack.json from chain-a with hight in header.json
-gaiacli --home ibc-a/n0/gaiacli q ibc channel proof port-to-b chann-to-b \
+gaiacli --home ibc-a/n0/gaiacli q ibc channel proof port-to-bank chann-to-b \
   $(jq -r '.value.SignedHeader.header.height' ibc-b/n0/header.json) \
   -o json >ibc-b/n0/chann_proof_ack.json
 # view proof_ack.json
@@ -345,7 +338,7 @@ gaiacli --home ibc-b/n0/gaiacli tx ibc client update client-to-a ibc-b/n0/header
 gaiacli --home ibc-b/n0/gaiacli q ibc client consensus-state client-to-a | jq
 # open-confirm
 gaiacli --home ibc-b/n0/gaiacli tx ibc channel open-confirm \
-  port-to-a chann-to-a \
+  port-to-bank chann-to-a \
   ibc-b/n0/chann_proof_ack.json \
   $(jq -r '.value.SignedHeader.header.height' ibc-b/n0/header.json) \
   --from n0 -y -o text \
@@ -358,19 +351,19 @@ query channel
 
 ```bash
 # query channel on chain-a
-gaiacli --home ibc-a/n0/gaiacli query ibc channel end port-to-b chann-to-b | jq
+gaiacli --home ibc-a/n0/gaiacli query ibc channel end port-to-bank chann-to-b | jq
 # query channel on chain-b
-gaiacli --home ibc-b/n0/gaiacli query ibc channel end port-to-a chann-to-a | jq
+gaiacli --home ibc-b/n0/gaiacli query ibc channel end port-to-bank chann-to-a | jq
 ```
 
 query channel proof
 
 ```bash
 # query channel proof with height in header.json on chain-a
-gaiacli --home ibc-a/n0/gaiacli q ibc channel proof port-to-b chann-to-b \
+gaiacli --home ibc-a/n0/gaiacli q ibc channel proof port-to-bank chann-to-b \
   $(jq -r '.value.SignedHeader.header.height' ibc-a/n0/header.json) | jq
 # query channel proof with height in header.json on chain-b
-gaiacli --home ibc-b/n0/gaiacli q ibc channel proof port-to-a chann-to-a \
+gaiacli --home ibc-b/n0/gaiacli q ibc channel proof port-to-bank chann-to-a \
   $(jq -r '.value.SignedHeader.header.height' ibc-b/n0/header.json) | jq
 ```
 
@@ -379,8 +372,8 @@ gaiacli --home ibc-b/n0/gaiacli q ibc channel proof port-to-a chann-to-a \
 ```bash
 # export transfer result to result.json
 gaiacli --home ibc-a/n0/gaiacli tx ibcmockbank transfer \
-  --src-port port-to-b --src-channel chann-to-b \
-  --denom n0token --amount 1 \
+  --src-port port-to-bank --src-channel chann-to-b \
+  --denom uiris --amount 1 \
   --receiver $(gaiacli --home ibc-b/n0/gaiacli keys show n0 | jq -r '.address') \
   --source true \
   --from n0 -y -o json > ibc-a/n0/result.json
@@ -396,7 +389,7 @@ jq -r '.events[1].attributes[2].value' ibc-a/n0/result.json >ibc-b/n0/packet.jso
 # export header.json from chain-a
 gaiacli --home ibc-a/n0/gaiacli q ibc client header -o json >ibc-b/n0/header.json
 # export proof.json from chain-b with hight in header.json
-gaiacli --home ibc-a/n0/gaiacli q ibc channel proof port-to-b chann-to-b \
+gaiacli --home ibc-a/n0/gaiacli q ibc channel proof port-to-bank chann-to-b \
   $(jq -r '.value.SignedHeader.header.height' ibc-b/n0/header.json) \
   -o json >ibc-b/n0/proof.json
 # view proof.json
