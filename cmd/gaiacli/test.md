@@ -263,7 +263,7 @@ gaiacli --home ibc-b/n0/gaiacli q ibc connection client client-to-a | jq
 gaiacli --home ibc-a/n0/gaiacli tx ibc channel open-init \
   port-to-bank chann-to-b \
   port-to-bank chann-to-a \
-  conn-to-b \
+  conn-to-b --unordered \
   --from n0 -y -o text \
   --broadcast-mode=block
 ```
@@ -288,7 +288,7 @@ gaiacli --home ibc-b/n0/gaiacli q ibc client consensus-state client-to-a | jq
 gaiacli --home ibc-b/n0/gaiacli tx ibc channel open-try \
   port-to-bank chann-to-a \
   port-to-bank chann-to-b \
-  conn-to-a \
+  conn-to-a --unordered \
   ibc-b/n0/chann_proof_init.json \
   $(jq -r '.value.SignedHeader.header.height' ibc-b/n0/header.json) \
   --from n0 -y -o text \
