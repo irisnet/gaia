@@ -18,6 +18,9 @@ sed -i '' 's#"tcp://0.0.0.0:26657"#"tcp://0.0.0.0:26557"#g' ibc-b/n0/gaiad/confi
 sed -i '' 's#"localhost:6060"#"localhost:6061"#g' ibc-b/n0/gaiad/config/config.toml
 sed -i '' 's#"tcp://127.0.0.1:26658"#"tcp://127.0.0.1:26558"#g' ibc-b/n0/gaiad/config/config.toml
 
+sed -i '' 's/n0token/atoken/' ibc-a/n0/gaiad/config/genesis.json
+sed -i '' 's/n0token/btoken/' ibc-b/n0/gaiad/config/genesis.json
+
 gaiacli config --home ibc-a/n0/gaiacli/ chain-id chain-a
 gaiacli config --home ibc-b/n0/gaiacli/ chain-id chain-b
 gaiacli config --home ibc-a/n0/gaiacli/ output json
@@ -373,7 +376,7 @@ gaiacli --home ibc-b/n0/gaiacli q ibc channel proof port-to-bank chann-to-a \
 # export transfer result to result.json
 gaiacli --home ibc-a/n0/gaiacli tx ibcmockbank transfer \
   --src-port port-to-bank --src-channel chann-to-b \
-  --denom uiris --amount 1 \
+  --denom atoken --amount 1 \
   --receiver $(gaiacli --home ibc-b/n0/gaiacli keys show n0 | jq -r '.address') \
   --source true \
   --from n0 -y -o json > ibc-a/n0/result.json
