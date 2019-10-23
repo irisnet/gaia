@@ -134,15 +134,10 @@ gaiacli --home ibc-b/n0/gaiacli tx ibc client update client-to-a ibc-b/n0/header
 `open-init` on chain-a
 
 ```bash
-# export prefix.json
-gaiacli --home ibc-b/n0/gaiacli q ibc client path -o json >ibc-a/n0/prefix.json
-# view prefix.json
-jq -r '' ibc-a/n0/prefix.json
 # open-init
 gaiacli --home ibc-a/n0/gaiacli tx ibc connection open-init \
   conn-to-b client-to-b \
   conn-to-a client-to-a \
-  ibc-a/n0/prefix.json \
   --from n0 -y -o text \
   --broadcast-mode=block
 ```
@@ -150,8 +145,6 @@ gaiacli --home ibc-a/n0/gaiacli tx ibc connection open-init \
 `open-try` on chain-b
 
 ```bash
-# export prefix.json
-gaiacli --home ibc-a/n0/gaiacli q ibc client path -o json >ibc-b/n0/prefix.json
 # export header.json from chain-a
 gaiacli --home ibc-a/n0/gaiacli q ibc client header -o json >ibc-b/n0/header.json
 # export proof_init.json from chain-a with hight in header.json
@@ -169,7 +162,6 @@ gaiacli --home ibc-b/n0/gaiacli q ibc client consensus-state client-to-a | jq
 gaiacli --home ibc-b/n0/gaiacli tx ibc connection open-try \
   conn-to-a client-to-a \
   conn-to-b client-to-b \
-  ibc-b/n0/prefix.json \
   1.0.0 \
   ibc-b/n0/conn_proof_init.json \
   $(jq -r '.value.SignedHeader.header.height' ibc-b/n0/header.json) \
