@@ -188,14 +188,14 @@ gaiacli \
 
 This command sends two transactions. You should see the reciept of the packet:
 
-```
+```bash
 ibc1 <- update-client  [OK] txid(7D4B4DE7A6B8E1045CA7BEB16E21DD0491BED000E5FB0D05BBB7960AABE5CC78) client(c1)
 ibc1 <- empty-packet   [OK] txid(6E90B9CE19394D7D41CF55E4ADCC94D6169B476B45527F9C47346080C85A289F) packets(1)
 ```
 
 > Note: This command pushes all the packets out of the channel with one command. Try pushing a **couple of packets** from `ibc0` to `ibc1` then fulshing them at once. You should see output like:
 
-```
+```bash
 ibc1 <- update-client  [OK] txid(21E0CE99A21DD7630A7DDE62459DD82C4051CC46B231A7B31529928B1B1B2C53) client(c1)
 ibc1 <- empty-packet   [OK] txid(92D76EF46FDCB3739DB06960BECCD7DA30AAA6AECA687DF4D92CC272D4941F7E) packets(2)
 ```

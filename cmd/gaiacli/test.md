@@ -94,15 +94,6 @@ gaiacli --home ibc-a/n0/gaiacli q ibc client consensus-state client-to-b | jq
 gaiacli --home ibc-b/n0/gaiacli q ibc client consensus-state client-to-a | jq
 ```
 
-query client path
-
-```bash
-# query client path of chain-a
-gaiacli --home ibc-a/n0/gaiacli q ibc client path | jq
-# query client path of chain-b
-gaiacli --home ibc-b/n0/gaiacli q ibc client path | jq
-```
-
 **Update client**
 
 update chain-a
