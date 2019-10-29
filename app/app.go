@@ -17,7 +17,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	"github.com/cosmos/cosmos-sdk/x/ibc"
-	ibcmockbank "github.com/cosmos/cosmos-sdk/x/ibc/mock/bank"
 	"github.com/cosmos/cosmos-sdk/x/mint"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
@@ -55,7 +54,6 @@ var (
 		slashing.AppModuleBasic{},
 		supply.AppModuleBasic{},
 		ibc.AppModuleBasic{},
-		ibcmockbank.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -94,18 +92,17 @@ type GaiaApp struct {
 	tkeys map[string]*sdk.TransientStoreKey
 
 	// keepers
-	accountKeeper     auth.AccountKeeper
-	bankKeeper        bank.Keeper
-	supplyKeeper      supply.Keeper
-	stakingKeeper     staking.Keeper
-	slashingKeeper    slashing.Keeper
-	mintKeeper        mint.Keeper
-	distrKeeper       distr.Keeper
-	govKeeper         gov.Keeper
-	crisisKeeper      crisis.Keeper
-	paramsKeeper      params.Keeper
-	ibcKeeper         ibc.Keeper
-	ibcmockbankKeeper ibcmockbank.Keeper
+	accountKeeper  auth.AccountKeeper
+	bankKeeper     bank.Keeper
+	supplyKeeper   supply.Keeper
+	stakingKeeper  staking.Keeper
+	slashingKeeper slashing.Keeper
+	mintKeeper     mint.Keeper
+	distrKeeper    distr.Keeper
+	govKeeper      gov.Keeper
+	crisisKeeper   crisis.Keeper
+	paramsKeeper   params.Keeper
+	ibcKeeper      ibc.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -127,7 +124,7 @@ func NewGaiaApp(logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest b
 	keys := sdk.NewKVStoreKeys(
 		bam.MainStoreKey, auth.StoreKey, staking.StoreKey,
 		supply.StoreKey, mint.StoreKey, distr.StoreKey, slashing.StoreKey,
-		gov.StoreKey, params.StoreKey, ibc.StoreKey, ibcmockbank.StoreKey,
+		gov.StoreKey, params.StoreKey, ibc.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(staking.TStoreKey, params.TStoreKey)
 
@@ -165,7 +162,6 @@ func NewGaiaApp(logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest b
 	)
 	app.crisisKeeper = crisis.NewKeeper(crisisSubspace, invCheckPeriod, app.supplyKeeper, auth.FeeCollectorName)
 	app.ibcKeeper = ibc.NewKeeper(app.cdc, keys[ibc.StoreKey], ibc.ModuleName)
-	app.ibcmockbankKeeper = ibcmockbank.NewKeeper(app.cdc, keys[ibcmockbank.StoreKey], app.ibcKeeper.ChannelKeeper, app.bankKeeper)
 
 	// register the proposal types
 	govRouter := gov.NewRouter()
@@ -197,7 +193,6 @@ func NewGaiaApp(logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest b
 		slashing.NewAppModule(app.slashingKeeper, app.stakingKeeper),
 		staking.NewAppModule(app.stakingKeeper, app.accountKeeper, app.supplyKeeper),
 		ibc.NewAppModule(app.ibcKeeper),
-		ibcmockbank.NewAppModule(app.ibcmockbankKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that

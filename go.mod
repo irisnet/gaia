@@ -28,4 +28,4 @@ require (
 	google.golang.org/genproto v0.0.0-20190801165951-fa694d86fc64 // indirect
 )
 
-replace github.com/cosmos/cosmos-sdk => github.com/irisnet/cosmos-sdk v0.23.2-0.20191024053222-fb9fd55110ea
+replace github.com/cosmos/cosmos-sdk => /Users/segue/Segue/IRIS/cosmos-sdk-iris
