@@ -161,7 +161,7 @@ func NewGaiaApp(logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest b
 		app.cdc, keys[slashing.StoreKey], &stakingKeeper, slashingSubspace, slashing.DefaultCodespace,
 	)
 	app.crisisKeeper = crisis.NewKeeper(crisisSubspace, invCheckPeriod, app.supplyKeeper, auth.FeeCollectorName)
-	app.ibcKeeper = ibc.NewKeeper(app.cdc, keys[ibc.StoreKey], ibc.ModuleName, app.bankKeeper)
+	app.ibcKeeper = ibc.NewKeeper(app.cdc, keys[ibc.StoreKey], ibc.ModuleName, app.bankKeeper, app.supplyKeeper)
 
 	// register the proposal types
 	govRouter := gov.NewRouter()
