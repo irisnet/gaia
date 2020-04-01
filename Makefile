@@ -53,7 +53,8 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=gaia \
 		  -X github.com/cosmos/cosmos-sdk/version.ClientName=gaiacli \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
 		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-		  -X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)"
+		  -X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)" \
+		  -X github.com/cosmos/cosmos-sdk/types.reDnmString=[a-z][a-z0-9:-]{2,15}
 
 ifeq ($(WITH_CLEVELDB),yes)
   ldflags += -X github.com/cosmos/cosmos-sdk/types.DBBackend=cleveldb
@@ -69,6 +70,16 @@ include contrib/devtools/Makefile
 ###############################################################################
 ###                              Documentation                              ###
 ###############################################################################
+
+update-swagger-docs:
+	$(BINDIR)/statik -src=cmd/gaiacli/swagger-ui -dest=cmd/gaiacli/lcd -f -m
+	@if [ -n "$(git status --porcelain)" ]; then \
+        echo "\033[91mSwagger docs are out of sync!!!\033[0m";\
+        exit 1;\
+    else \
+    	echo "\033[92mSwagger docs are in sync\033[0m";\
+    fi
+.PHONY: update-swagger-docs
 
 all: install lint test
 

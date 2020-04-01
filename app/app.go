@@ -35,6 +35,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/supply"
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
+	"github.com/irismod/coinswap"
 )
 
 const appName = "GaiaApp"
@@ -66,6 +67,7 @@ var (
 		evidence.AppModuleBasic{},
 		ibc.AppModuleBasic{},
 		transfer.AppModuleBasic{},
+		coinswap.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -77,6 +79,7 @@ var (
 		staking.NotBondedPoolName:       {supply.Burner, supply.Staking},
 		gov.ModuleName:                  {supply.Burner},
 		transfer.GetModuleAccountName(): {supply.Minter, supply.Burner},
+		coinswap.ModuleName:             {supply.Minter, supply.Burner},
 	}
 )
 
@@ -112,6 +115,7 @@ type GaiaApp struct {
 	evidenceKeeper evidence.Keeper
 	ibcKeeper      ibc.Keeper
 	transferKeeper transfer.Keeper
+	coinswapKeeper coinswap.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -138,7 +142,7 @@ func NewGaiaApp(
 		bam.MainStoreKey, auth.StoreKey, bank.StoreKey, staking.StoreKey,
 		supply.StoreKey, mint.StoreKey, distr.StoreKey, slashing.StoreKey,
 		gov.StoreKey, params.StoreKey, ibc.StoreKey, transfer.StoreKey,
-		evidence.StoreKey, upgrade.StoreKey,
+		evidence.StoreKey, upgrade.StoreKey, coinswap.StoreKey,
 	)
 	tKeys := sdk.NewTransientStoreKeys(staking.TStoreKey, params.TStoreKey)
 
@@ -162,6 +166,7 @@ func NewGaiaApp(
 	app.subspaces[gov.ModuleName] = app.paramsKeeper.Subspace(gov.DefaultParamspace).WithKeyTable(gov.ParamKeyTable())
 	app.subspaces[crisis.ModuleName] = app.paramsKeeper.Subspace(crisis.DefaultParamspace)
 	app.subspaces[evidence.ModuleName] = app.paramsKeeper.Subspace(evidence.DefaultParamspace)
+	app.subspaces[coinswap.ModuleName] = app.paramsKeeper.Subspace(coinswap.DefaultParamspace)
 
 	// add keepers
 	app.accountKeeper = auth.NewAccountKeeper(
@@ -231,6 +236,8 @@ func NewGaiaApp(
 		app.ibcKeeper.ChannelKeeper, app.bankKeeper, app.supplyKeeper,
 	)
 
+	app.coinswapKeeper = coinswap.NewKeeper(app.cdc, keys[coinswap.StoreKey], app.bankKeeper, app.accountKeeper, app.supplyKeeper, app.subspaces[coinswap.ModuleName])
+
 	// NOTE: Any module instantiated in the module manager that is later modified
 	// must be passed by reference here.
 	app.mm = module.NewManager(
@@ -248,6 +255,7 @@ func NewGaiaApp(
 		evidence.NewAppModule(app.evidenceKeeper),
 		ibc.NewAppModule(app.ibcKeeper),
 		transfer.NewAppModule(app.transferKeeper),
+		coinswap.NewAppModule(app.coinswapKeeper),
 	)
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
@@ -260,7 +268,7 @@ func NewGaiaApp(
 	// properly initialized with tokens from genesis accounts.
 	app.mm.SetOrderInitGenesis(
 		distr.ModuleName, staking.ModuleName, auth.ModuleName, bank.ModuleName,
-		slashing.ModuleName, gov.ModuleName, mint.ModuleName, supply.ModuleName,
+		slashing.ModuleName, gov.ModuleName, mint.ModuleName, coinswap.ModuleName, supply.ModuleName,
 		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName,
 	)
 
