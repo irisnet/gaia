@@ -234,6 +234,8 @@ github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANyt
 github.com/influxdata/influxdb1-client v0.0.0-20191209144304-8bf82d3c094d/go.mod h1:qj24IKcXYK6Iy9ceXlo3Tc+vtHo9lIhSX5JddghvEPo=
 github.com/irismod/coinswap v0.0.0-20200401082939-805fda07404c h1:yQTAVR1wiu/iEU4MCghxvuTGZCWa8yFWbAEmoB4a1H0=
 github.com/irismod/coinswap v0.0.0-20200401082939-805fda07404c/go.mod h1:rMpJHT826i7KjuqxeFFvdFPSE8tNuaez5hhnV3LejZ0=
+github.com/irismod/coinswap v0.0.0-20200401122250-628d1a94853a h1:HJ8p6sOVoGCMZ8/qH6wO8uLmkUd/gDUsu1mCODVdSXE=
+github.com/irismod/coinswap v0.0.0-20200401122250-628d1a94853a/go.mod h1:rMpJHT826i7KjuqxeFFvdFPSE8tNuaez5hhnV3LejZ0=
 github.com/jessevdk/go-flags v0.0.0-20141203071132-1679536dcc89/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
 github.com/jmhodges/levigo v1.0.0 h1:q5EC36kV79HWeTBWsod3mG11EgStG3qArTKcvlksN1U=
