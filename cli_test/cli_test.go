@@ -13,6 +13,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	tmtypes "github.com/tendermint/tendermint/types"
+
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	codecstd "github.com/cosmos/cosmos-sdk/codec/std"
 	"github.com/cosmos/cosmos-sdk/tests"
@@ -22,9 +26,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	"github.com/cosmos/cosmos-sdk/x/mint"
-	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/cosmos/gaia/app"
 )
@@ -45,9 +46,13 @@ func TestGaiaCLIKeysAddMultisig(t *testing.T) {
 	// key names order does not matter
 	f.KeysAdd("msig1", "--multisig-threshold=2",
 		fmt.Sprintf("--multisig=%s,%s", keyBar, keyBaz))
+	ke1Address1 := f.KeysShow("msig1").Address
+	f.KeysDelete("msig1")
+
 	f.KeysAdd("msig2", "--multisig-threshold=2",
 		fmt.Sprintf("--multisig=%s,%s", keyBaz, keyBar))
-	require.Equal(t, f.KeysShow("msig1").Address, f.KeysShow("msig2").Address)
+	require.Equal(t, ke1Address1, f.KeysShow("msig2").Address)
+	f.KeysDelete("msig2")
 
 	f.KeysAdd("msig3", "--multisig-threshold=2",
 		fmt.Sprintf("--multisig=%s,%s", keyBar, keyBaz),
@@ -233,8 +238,15 @@ func TestGaiaCLISend(t *testing.T) {
 	startTokens := sdk.TokensFromConsensusPower(50)
 	require.Equal(t, startTokens, f.QueryBalances(fooAddr).AmountOf(denom))
 
-	// Send some tokens from one account to the other
 	sendTokens := sdk.TokensFromConsensusPower(10)
+
+	// It does not allow to send in offline mode
+	success, _, stdErr := f.TxSend(keyFoo, barAddr, sdk.NewCoin(denom, sendTokens), "-y", "--offline")
+	require.Contains(t, stdErr, "no RPC client is defined in offline mode")
+	require.False(f.T, success)
+	tests.WaitForNextNBlocksTM(1, f.Port)
+
+	// Send some tokens from one account to the other
 	f.TxSend(keyFoo, barAddr, sdk.NewCoin(denom, sendTokens), "-y")
 	tests.WaitForNextNBlocksTM(1, f.Port)
 
@@ -243,7 +255,7 @@ func TestGaiaCLISend(t *testing.T) {
 	require.Equal(t, startTokens.Sub(sendTokens), f.QueryBalances(fooAddr).AmountOf(denom))
 
 	// Test --dry-run
-	success, _, _ := f.TxSend(keyFoo, barAddr, sdk.NewCoin(denom, sendTokens), "--dry-run")
+	success, _, _ = f.TxSend(keyFoo, barAddr, sdk.NewCoin(denom, sendTokens), "--dry-run")
 	require.True(t, success)
 
 	// Test --generate-only
@@ -618,12 +630,7 @@ func TestGaiaCLISubmitParamChangeProposal(t *testing.T) {
       "value": 105
     }
   ],
-  "deposit": [
-    {
-      "denom": "stake",
-      "amount": "%s"
-    }
-  ]
+  "deposit": "%sstake"
 }
 `, proposalTokens.String())
 
@@ -694,20 +701,10 @@ func TestGaiaCLISubmitCommunityPoolSpendProposal(t *testing.T) {
   "title": "Community Pool Spend",
   "description": "Spend from community pool",
   "recipient": "%s",
-  "amount": [
-    {
-      "denom": "%s",
-      "amount": "1"
-    }
-  ],
-  "deposit": [
-    {
-      "denom": "%s",
-      "amount": "%s"
-    }
-  ]
+  "amount": "1%s",
+  "deposit": "%s%s"
 }
-`, fooAddr, sdk.DefaultBondDenom, sdk.DefaultBondDenom, proposalTokens.String())
+`, fooAddr, sdk.DefaultBondDenom, proposalTokens.String(), sdk.DefaultBondDenom)
 	proposalFile := WriteToNewTempFile(t, proposal)
 
 	// create the param change proposal
@@ -893,6 +890,17 @@ func TestGaiaCLISendGenerateSignAndBroadcast(t *testing.T) {
 	require.Equal(t, fmt.Sprintf("Signers:\n  0: %v\n\nSignatures:\n\n", fooAddr.String()), stdout)
 
 	// Test sign
+
+	// Does not work in offline mode
+	success, stdout, stderr = f.TxSign(keyFoo, unsignedTxFile.Name(), "--offline")
+	require.Contains(t, stderr, "required flag(s) \"account-number\", \"sequence\" not set")
+	require.False(t, success)
+
+	// But works offline if we set account number and sequence
+	success, _, _ = f.TxSign(keyFoo, unsignedTxFile.Name(), "--offline", "--account-number", "1", "--sequence", "1")
+	require.True(t, success)
+
+	// Sign transaction
 	success, stdout, _ = f.TxSign(keyFoo, unsignedTxFile.Name())
 	require.True(t, success)
 	msg = f.unmarshalStdTx(t, stdout)
@@ -915,6 +923,13 @@ func TestGaiaCLISendGenerateSignAndBroadcast(t *testing.T) {
 	require.Equal(t, startTokens, f.QueryBalances(fooAddr).AmountOf(denom))
 
 	// Test broadcast
+
+	// Does not work in offline mode
+	success, _, stderr = f.TxBroadcast(signedTxFile.Name(), "--offline")
+	require.Contains(t, stderr, "cannot broadcast tx during offline mode")
+	require.False(t, success)
+	tests.WaitForNextNBlocksTM(1, f.Port)
+
 	success, stdout, _ = f.TxBroadcast(signedTxFile.Name())
 	require.True(t, success)
 	tests.WaitForNextNBlocksTM(1, f.Port)
@@ -1124,6 +1139,14 @@ func TestGaiaCLIMultisign(t *testing.T) {
 	defer os.Remove(barSignatureFile.Name())
 
 	// Multisign
+
+	// Does not work in offline mode
+	success, stdout, _ = f.TxMultisign(unsignedTxFile.Name(), keyFooBarBaz, []string{
+		fooSignatureFile.Name(), barSignatureFile.Name()}, "--offline")
+	require.Contains(t, "couldn't verify signature", stdout)
+	require.False(t, success)
+
+	// Success multisign
 	success, stdout, _ = f.TxMultisign(unsignedTxFile.Name(), keyFooBarBaz, []string{
 		fooSignatureFile.Name(), barSignatureFile.Name()})
 	require.True(t, success)

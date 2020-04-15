@@ -93,8 +93,8 @@ else
 endif
 
 install: go.sum
-	go install $(BUILD_FLAGS) ./cmd/gaiad
-	go install $(BUILD_FLAGS) ./cmd/gaiacli
+	go install -mod=readonly $(BUILD_FLAGS) ./cmd/gaiad
+	go install -mod=readonly $(BUILD_FLAGS) ./cmd/gaiacli
 
 go-mod-cache: go.sum
 	@echo "--> Download go modules to local cache"
@@ -223,23 +223,6 @@ run-lcd-contract-tests:
 contract-tests: setup-transactions
 	@echo "Running Gaia LCD for contract tests"
 	dredd && pkill gaiad
-
-###############################################################################
-###                                Protobuf                                 ###
-###############################################################################
-
-proto-all: proto-gen proto-lint proto-check-breaking
-
-proto-gen:
-	@./scripts/protocgen.sh
-
-proto-lint:
-	@buf check lint --error-format=json
-
-proto-check-breaking:
-	@buf check breaking --against-input '.git#branch=master'
-
-.PHONY: proto-all proto-gen proto-lint proto-check-breaking
 
 .PHONY: all build-linux install install-debug \
 	go-mod-cache draw-deps clean build \

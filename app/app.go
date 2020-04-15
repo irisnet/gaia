@@ -19,12 +19,14 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/bank"
+	"github.com/cosmos/cosmos-sdk/x/capability"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	distr "github.com/cosmos/cosmos-sdk/x/distribution"
 	"github.com/cosmos/cosmos-sdk/x/evidence"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	"github.com/cosmos/cosmos-sdk/x/ibc"
+	port "github.com/cosmos/cosmos-sdk/x/ibc/05-port"
 	transfer "github.com/cosmos/cosmos-sdk/x/ibc/20-transfer"
 	"github.com/cosmos/cosmos-sdk/x/mint"
 	"github.com/cosmos/cosmos-sdk/x/params"
@@ -62,7 +64,6 @@ var (
 		crisis.AppModuleBasic{},
 		slashing.AppModuleBasic{},
 		supply.AppModuleBasic{},
-		ibc.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 		evidence.AppModuleBasic{},
 		ibc.AppModuleBasic{},
@@ -101,21 +102,24 @@ type GaiaApp struct {
 	subspaces map[string]params.Subspace
 
 	// keepers
-	accountKeeper  auth.AccountKeeper
-	bankKeeper     bank.Keeper
-	supplyKeeper   supply.Keeper
-	stakingKeeper  staking.Keeper
-	slashingKeeper slashing.Keeper
-	mintKeeper     mint.Keeper
-	distrKeeper    distr.Keeper
-	govKeeper      gov.Keeper
-	crisisKeeper   crisis.Keeper
-	paramsKeeper   params.Keeper
-	upgradeKeeper  upgrade.Keeper
-	evidenceKeeper evidence.Keeper
-	ibcKeeper      ibc.Keeper
-	transferKeeper transfer.Keeper
-	coinswapKeeper coinswap.Keeper
+	accountKeeper        auth.AccountKeeper
+	bankKeeper           bank.Keeper
+	supplyKeeper         supply.Keeper
+	stakingKeeper        staking.Keeper
+	capabilityKeeper     *capability.Keeper
+	slashingKeeper       slashing.Keeper
+	mintKeeper           mint.Keeper
+	distrKeeper          distr.Keeper
+	govKeeper            gov.Keeper
+	crisisKeeper         crisis.Keeper
+	paramsKeeper         params.Keeper
+	upgradeKeeper        upgrade.Keeper
+	evidenceKeeper       evidence.Keeper
+	ibcKeeper            *ibc.Keeper
+	transferKeeper       transfer.Keeper
+	scopedIBCKeeper      capability.ScopedKeeper
+	scopedTransferKeeper capability.ScopedKeeper
+	coinswapKeeper       coinswap.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -139,12 +143,12 @@ func NewGaiaApp(
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetAppVersion(version.Version)
 	keys := sdk.NewKVStoreKeys(
-		bam.MainStoreKey, auth.StoreKey, bank.StoreKey, staking.StoreKey,
+		bam.MainStoreKey, capability.StoreKey, auth.StoreKey, bank.StoreKey, staking.StoreKey,
 		supply.StoreKey, mint.StoreKey, distr.StoreKey, slashing.StoreKey,
 		gov.StoreKey, params.StoreKey, ibc.StoreKey, transfer.StoreKey,
 		evidence.StoreKey, upgrade.StoreKey, coinswap.StoreKey,
 	)
-	tKeys := sdk.NewTransientStoreKeys(staking.TStoreKey, params.TStoreKey)
+	tKeys := sdk.NewTransientStoreKeys(params.TStoreKey)
 
 	app := &GaiaApp{
 		BaseApp:        bApp,
@@ -168,6 +172,11 @@ func NewGaiaApp(
 	app.subspaces[evidence.ModuleName] = app.paramsKeeper.Subspace(evidence.DefaultParamspace)
 	app.subspaces[coinswap.ModuleName] = app.paramsKeeper.Subspace(coinswap.DefaultParamspace)
 
+	// add capability keeper and ScopeToModule for ibc module
+	app.capabilityKeeper = capability.NewKeeper(appCodec, keys[capability.StoreKey])
+	scopedIBCKeeper := app.capabilityKeeper.ScopeToModule(ibc.ModuleName)
+	scopedTransferKeeper := app.capabilityKeeper.ScopeToModule(transfer.ModuleName)
+
 	// add keepers
 	app.accountKeeper = auth.NewAccountKeeper(
 		appCodec, keys[auth.StoreKey], app.subspaces[auth.ModuleName], auth.ProtoBaseAccount,
@@ -189,12 +198,9 @@ func NewGaiaApp(
 		appCodec, keys[distr.StoreKey], app.subspaces[distr.ModuleName], app.bankKeeper, &stakingKeeper,
 		app.supplyKeeper, auth.FeeCollectorName, app.ModuleAccountAddrs(),
 	)
-	app.mintKeeper = mint.NewKeeper(appCodec, keys[mint.StoreKey], app.subspaces[mint.ModuleName], &stakingKeeper, app.supplyKeeper, auth.FeeCollectorName)
-	app.distrKeeper = distr.NewKeeper(appCodec, keys[distr.StoreKey], app.subspaces[distr.ModuleName], app.bankKeeper, &stakingKeeper, app.supplyKeeper, auth.FeeCollectorName, app.ModuleAccountAddrs())
 	app.slashingKeeper = slashing.NewKeeper(
 		appCodec, keys[slashing.StoreKey], &stakingKeeper, app.subspaces[slashing.ModuleName],
 	)
-
 	app.crisisKeeper = crisis.NewKeeper(
 		app.subspaces[crisis.ModuleName], invCheckPeriod, app.supplyKeeper, auth.FeeCollectorName,
 	)
@@ -228,15 +234,24 @@ func NewGaiaApp(
 		staking.NewMultiStakingHooks(app.distrKeeper.Hooks(), app.slashingKeeper.Hooks()),
 	)
 
-	app.ibcKeeper = ibc.NewKeeper(app.cdc, keys[ibc.StoreKey], stakingKeeper)
+	// create IBC keeper
+	app.ibcKeeper = ibc.NewKeeper(app.cdc, keys[ibc.StoreKey], stakingKeeper, scopedIBCKeeper)
 
-	transferCapKey := app.ibcKeeper.PortKeeper.BindPort(bank.ModuleName)
+	// create transfer keeper
 	app.transferKeeper = transfer.NewKeeper(
-		app.cdc, keys[transfer.StoreKey], transferCapKey,
-		app.ibcKeeper.ChannelKeeper, app.bankKeeper, app.supplyKeeper,
+		app.cdc, keys[transfer.StoreKey],
+		app.ibcKeeper.ChannelKeeper, &app.ibcKeeper.PortKeeper,
+		app.bankKeeper, app.supplyKeeper, scopedTransferKeeper,
 	)
-
 	app.coinswapKeeper = coinswap.NewKeeper(app.cdc, keys[coinswap.StoreKey], app.bankKeeper, app.accountKeeper, app.supplyKeeper, app.subspaces[coinswap.ModuleName])
+
+	// instantiate the module to use it in the router
+	transferModule := transfer.NewAppModule(app.transferKeeper)
+
+	// create the IBC router and add the transfer route to it
+	ibcRouter := port.NewRouter()
+	ibcRouter.AddRoute(transfer.ModuleName, transferModule)
+	app.ibcKeeper.SetRouter(ibcRouter)
 
 	// NOTE: Any module instantiated in the module manager that is later modified
 	// must be passed by reference here.
@@ -254,7 +269,7 @@ func NewGaiaApp(
 		upgrade.NewAppModule(app.upgradeKeeper),
 		evidence.NewAppModule(app.evidenceKeeper),
 		ibc.NewAppModule(app.ibcKeeper),
-		transfer.NewAppModule(app.transferKeeper),
+		transferModule,
 		coinswap.NewAppModule(app.coinswapKeeper),
 	)
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -270,6 +285,7 @@ func NewGaiaApp(
 		distr.ModuleName, staking.ModuleName, auth.ModuleName, bank.ModuleName,
 		slashing.ModuleName, gov.ModuleName, mint.ModuleName, coinswap.ModuleName, supply.ModuleName,
 		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName,
+		transfer.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.crisisKeeper)
@@ -299,7 +315,7 @@ func NewGaiaApp(
 	// initialize BaseApp
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
-	app.SetAnteHandler(ante.NewAnteHandler(app.accountKeeper, app.supplyKeeper, app.ibcKeeper, ante.DefaultSigVerificationGasConsumer))
+	app.SetAnteHandler(ante.NewAnteHandler(app.accountKeeper, app.supplyKeeper, *app.ibcKeeper, ante.DefaultSigVerificationGasConsumer))
 	app.SetEndBlocker(app.EndBlocker)
 
 	if loadLatest {
@@ -308,6 +324,9 @@ func NewGaiaApp(
 			tmos.Exit(err.Error())
 		}
 	}
+
+	app.scopedIBCKeeper = scopedIBCKeeper
+	app.scopedTransferKeeper = scopedTransferKeeper
 
 	return app
 }

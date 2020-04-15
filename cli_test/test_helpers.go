@@ -17,7 +17,7 @@ import (
 
 	clientkeys "github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/crypto/keys"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/tests"
@@ -298,11 +298,11 @@ func (f *Fixtures) KeysAddRecoverHDPath(name, mnemonic string, account uint32, i
 }
 
 // KeysShow is gaiacli keys show
-func (f *Fixtures) KeysShow(name string, flags ...string) keys.KeyOutput {
+func (f *Fixtures) KeysShow(name string, flags ...string) keyring.KeyOutput {
 	cmd := fmt.Sprintf("%s keys show --keyring-backend=test --home=%s %s", f.GaiacliBinary,
 		f.GaiacliHome, name)
 	out, _ := tests.ExecuteT(f.T, addFlags(cmd, flags), "")
-	var ko keys.KeyOutput
+	var ko keyring.KeyOutput
 	err := clientkeys.UnmarshalJSON([]byte(out), &ko)
 	require.NoError(f.T, err)
 	return ko
@@ -361,7 +361,7 @@ func (f *Fixtures) TxMultisign(fileName, name string, signaturesFiles []string,
 	cmd := fmt.Sprintf("%s tx multisign --keyring-backend=test %v %s %s %s", f.GaiacliBinary, f.Flags(),
 		fileName, name, strings.Join(signaturesFiles, " "),
 	)
-	return executeWriteRetStdStreams(f.T, cmd)
+	return executeWriteRetStdStreams(f.T, addFlags(cmd, flags))
 }
 
 //___________________________________________________________________________________
