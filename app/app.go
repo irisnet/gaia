@@ -36,7 +36,6 @@ import (
 	paramproposal "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"github.com/cosmos/cosmos-sdk/x/slashing"
 	"github.com/cosmos/cosmos-sdk/x/staking"
-	"github.com/cosmos/cosmos-sdk/x/supply"
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 	"github.com/irismod/coinswap"
@@ -84,7 +83,7 @@ var (
 		staking.NotBondedPoolName:       {auth.Burner, auth.Staking},
 		gov.ModuleName:                  {auth.Burner},
 		transfer.GetModuleAccountName(): {auth.Minter, auth.Burner},
-		coinswap.ModuleName:             {supply.Minter, supply.Burner},
+		coinswap.ModuleName:             {auth.Minter, auth.Burner},
 	}
 
 	// module accounts that are allowed to receive tokens
