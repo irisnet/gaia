@@ -3,7 +3,7 @@ module github.com/cosmos/gaia
 go 1.14
 
 require (
-	github.com/cosmos/cosmos-sdk v0.34.4-0.20200423152229-f1fdde5d1b18
+	github.com/cosmos/cosmos-sdk v0.34.4-0.20200502230752-7557f0eda346
 	github.com/irismod/coinswap v0.0.0-20200425070411-b8893f2c227b
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
