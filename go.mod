@@ -16,3 +16,5 @@ require (
 	github.com/tendermint/tendermint v0.33.4
 	github.com/tendermint/tm-db v0.5.1
 )
+
+replace github.com/cosmos/cosmos-sdk => github.com/irisnet/cosmos-sdk v0.28.2-0.20200512060251-d0edeb72f345
